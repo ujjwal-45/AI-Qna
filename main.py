@@ -42,34 +42,34 @@ elif uploaded_files:
   documents = textify_output[0]
   sources = textify_output[1]
 
-# extraxt the embeddings
-embeddings = OpenAIEmbeddings(openai_api_key = st.secrets["openai_api_key"])
+  # extraxt the embeddings
+  embeddings = OpenAIEmbeddings(openai_api_key = st.secrets["openai_api_key"])
+  
+  # storing page numbers in vector store
+  vStore = Chroma.from_texts(documents, embeddings, metadatas=[{"source": s} for s in sources])
+  
+  model_name = "gpt-3.5-turbo"
+  
+  retriever = vStore.as_retriever()
+  retriever.search_kwargs = {'k': 2}
+  
+  llm = OpenAI(model_name=model_name, openai_api_key = st.secrets["openai_api_key"], streaming=True)
+  model = RetrievalQAWithSourcesChain.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
+  
+  st.header("Ask your questions")
+  user_q = st.text_area("Enter your questions here")
 
-# storing page numbers in vector store
-vStore = Chroma.from_texts(documents, embeddings, metadatas=[{"source": s} for s in sources])
-
-model_name = "gpt-3.5-turbo"
-
-retriever = vStore.as_retriever()
-retriever.search_kwargs = {'k': 2}
-
-llm = OpenAI(model_name=model_name, openai_api_key = st.secrets["openai_api_key"], streaming=True)
-model = RetrievalQAWithSourcesChain.from_chain_type(llm=llm, chain_type="stuff", retriever=retriever)
-
-st.header("Ask your questions")
-user_q = st.text_area("Enter your questions here")
-
-if st.button("Get Response"):
-  try:
-    with st.spinner("Model is working on it..."):
-      result = model({"question": user_q}, return_only_outputs=True)
-      st.subheader('Your response:')
-      st.write(result['answer'])
-      st.subheader('Source pages:')
-      st.write(result['sources'])
-  except Exception as e:
-    st.error(f"An error occurred: {e}")
-    st.error('Oh no, the GPT response resulted in an error : (Please try again with a different question.')
+  if st.button("Get Response"):
+    try:
+      with st.spinner("Model is working on it..."):
+        result = model({"question": user_q}, return_only_outputs=True)
+        st.subheader('Your response:')
+        st.write(result['answer'])
+        st.subheader('Source pages:')
+        st.write(result['sources'])
+    except Exception as e:
+      st.error(f"An error occurred: {e}")
+      st.error('Oh no, the GPT response resulted in an error : (Please try again with a different question.')
 
 
 
